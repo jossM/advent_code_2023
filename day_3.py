@@ -4,7 +4,9 @@ import re
 
 from collections import defaultdict
 
-part_2 = True
+
+schema = list(filter(bool, """""".split("\n"))) # fill this with input
+part_2 = False
 
 all_symbols = {i: [match.start() for match in re.finditer('[^\d.]', line)] for i, line in enumerate(schema)}
 total = 0
