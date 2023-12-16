@@ -26,4 +26,11 @@ def find_smallest_repeating_pattern(sequence: list) -> list:
     return sequence
 
 shortest_path = find_smallest_repeating_pattern(path)
-# to be continued
+
+starting_locations = [node for node in all_edges.keys() if node.endswith('A')]
+location_pattern_length = []
+node_Z_patterns = []
+
+for node in starting_locations:
+    continue
+    # to be continued
