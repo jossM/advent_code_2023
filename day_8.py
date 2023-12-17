@@ -35,11 +35,6 @@ class CycleData:
     starting_sequence_len: int
     cycle_length: int
     z_indexes: Tuple[int, ...]
-
-def make_z_indexes_generators(cycle_data: CycleData):
-    starting_z_indexes = [i for i in cycle_data.z_indexes if i < cycle_data.starting_sequence_len]
-    infite_z_indexes_generator = ( i + cycle_count * cycle_data.cycle_length for cycle_count in count() for i in cycle_data.z_indexes if i >= cycle_data.starting_sequence_len)
-    return iter(chain(starting_z_indexes, infite_z_indexes_generator))
     
 
 # Since there is no end to the process and the number of location & associated point in the path, there has to be cycles
@@ -65,23 +60,19 @@ for node in starting_locations:
 
 
 # This grants us the ability to know which step_count will correspond to a location ending in Z per start point
-# Brute forcing the exploration is still not fast enough, let us "math this ou
+# step_to_z_location = z_first_seen_position + cycle_length * cycle_count
+# Brute forcing the exploration is still not fast enough
+# It seems there is a trick in the exercise where z indexes only appear once and at a position which correspond ee
+for cycle in all_node_Z_patterns:
+    assert len(cycle.z_indexes) == 1
+    assert cycle.z_indexes[0] == cycle.cycle_length
+    assert cycle.z_indexes[0] > cycle.starting_sequence_len
+print("property was checked out for every cycle. Rest of the program should work.")
+
+# now that we know those properties, the question is :
+# what is the smallest number of step so that it belongs to all the z_locations series that follow this pattern : 
+# step_to_z_location = cycle_length * (cycle_count + 1)
+# Simple lcm of cycle length is the answer
 macro_cycle = math.lcm(*[cycle.cycle_length for cycle in all_node_Z_patterns]) 
 print(f"Final solutions should be {macro_cycle} (power {int(math.log(macro_cycle, 10))})")
 # don't know what this could be for just yet
-
-print("to make sure we will valite by explicitely searching through all items. (This will take a while)")
-z_indexes_generator = [make_z_indexes_generators(cycle_data) for cycle_data in all_node_Z_patterns]
-z_indexes = [next(generate_z) for generate_z in z_indexes_generator]
-powers = set()
-while not len(set(z_indexes)) == 1:
-    current_max_z_indexes = max(z_indexes)
-    for i, z_index in enumerate(z_indexes):
-        while z_index < current_max_z_indexes:
-            z_index = next(z_indexes_generator[i])
-        z_indexes[i] = z_index
-        if  int(math.log(current_max_z_indexes, 10)) not in powers:
-            print(f"Up to {max(z_indexes)} (power {int(math.log(max(z_indexes), 10))})")
-            powers.add(int(math.log(current_max_z_indexes, 10)))
-
-print(f"All reached destination ending in Z after {z_indexes[0]}")
