@@ -65,33 +65,12 @@ for node in starting_locations:
 
 
 # This grants us the ability to know which step_count will correspond to a location ending in Z per start point
-# Brute forcing the exploration is still not fast enough, let us "math this out"
-def decompose_in_prime(n: int) -> Dict[int, int]:
-    result = defaultdict(lambda: 0)
-    last_devider = 2
-    while True:
-        found_devider = False
-        for devider in range(last_devider, math.floor(math.sqrt(n))):  # this is crude but won't impact perf
-            if n % devider == 0:
-                n = int(n / devider)
-                result[devider] += 1
-                last_devider = devider
-                found_devider = True
-                break
-        if not found_devider:
-            result[n] = 1
-            return dict(result)
-
-
-macro_cycle_components = defaultdict(lambda: 0)
-for cycle in all_node_Z_patterns:
-    for prime, power in decompose_in_prime(cycle.cycle_length).items():
-        macro_cycle_components[prime] = max(macro_cycle_components[prime], power)
-macro_cycle = 1
-for prime, power in macro_cycle_components.items():
-    macro_cycle *= prime**power
+# Brute forcing the exploration is still not fast enough, let us "math this ou
+macro_cycle = math.lcm(*[cycle.cycle_length for cycle in all_node_Z_patterns]) 
+print(f"Final solutions should be {macro_cycle} (power {int(math.log(macro_cycle, 10))})")
 # don't know what this could be for just yet
 
+print("to make sure we will valite by explicitely searching through all items. (This will take a while)")
 z_indexes_generator = [make_z_indexes_generators(cycle_data) for cycle_data in all_node_Z_patterns]
 z_indexes = [next(generate_z) for generate_z in z_indexes_generator]
 powers = set()
@@ -101,8 +80,8 @@ while not len(set(z_indexes)) == 1:
         while z_index < current_max_z_indexes:
             z_index = next(z_indexes_generator[i])
         z_indexes[i] = z_index
-    
-
-
+        if  int(math.log(current_max_z_indexes, 10)) not in powers:
+            print(f"Up to {max(z_indexes)} (power {int(math.log(max(z_indexes), 10))})")
+            powers.add(int(math.log(current_max_z_indexes, 10)))
 
 print(f"All reached destination ending in Z after {z_indexes[0]}")
