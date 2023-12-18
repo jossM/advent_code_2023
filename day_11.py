@@ -1,8 +1,6 @@
 import math
 import numpy as np
 
-# WIP
-
 raw_galaxy_image = list(filter(bool, """""".split("\n"))) # fill this with input
 
 
@@ -21,12 +19,11 @@ galaxy_distances = np.full((len(galaxies_index), len(galaxies_index)), np.NaN)
 
 for g_index_1, (x1, y1) in zip(range(len(galaxies_index) - 1), galaxies_index[:-1]):
     for g_index_2, (x2, y2) in zip(range(g_index_1 + 1, len(galaxies_index)), galaxies_index[g_index_1 + 1:]):
-        galaxy_distances[g_index_1, g_index_2] = int(
-                abs(x2 - x1) + abs(y2 - y1)
-                + len(empty_rows.intersection(range(min(x1, x2), max(x1, x2))))  # space distorsion in x
-                + len(empty_rows.intersection(range(min(y1, y2), max(y1, y2))))  # space distorsion in y
-        )
-total_min_dist = 0
-for g_index_1 in range(len(galaxies_index)):
-    total_min_dist += np.nanmin(np.concatenate((galaxy_distances[g_index_1, :], galaxy_distances[:, g_index_1]), axis=None))
-print(total_min_dist)
+        galaxy_distances[g_index_1, g_index_2] = int(sum([
+                abs(x2 - x1),
+                abs(y2 - y1),
+                len(empty_rows.intersection(range(min(x1, x2), max(x1, x2)))),  # space distorsion in x
+                len(empty_cols.intersection(range(min(y1, y2), max(y1, y2)))),  # space distorsion in y
+        ]))
+
+np.nansum(galaxy_distances)
