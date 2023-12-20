@@ -1,16 +1,13 @@
-from typing import List, Tuple
+from typing import List, Tuple, Iterable
 
-_re_patterns = dict()
+raw_spring_patterns = list(filter(bool, """""".split("\n"))) # fill this with input
 
 
 def describe_pattern(springs_pattern: str) -> List[Tuple[str, int]]:
     group_description = []
     while springs_pattern:
         start_char = springs_pattern[0]
-        if start_char not in _re_patterns:
-            _re_patterns[start_char] = re.compile(springs_pattern[0]) + "+")
-        re_pattern_matcher = _re_patterns[start_char]
-        start_group = next(re_pattern_matcher.finditer(springs_pattern))
+        start_group = next(re.finditer(springs_pattern[0]) + "+", springs_pattern))
         group_description.append((start_char, start_group.end()))
         springs_pattern = springs_pattern[start_group.end():]
     return group_description
@@ -39,4 +36,35 @@ def start_pattern_could_match(springs_pattern: List[Tuple[str, int]], broken_spr
         broken_spring_pattern[exact_match_length - 1] <= broken_springs_spec[exact_match_length - 1]
     )
 
-# wip
+def fuse_same_adjacent_groups(spring_pattern: List[Tuple[str, int]]) -> List[Tuple[str, int]:
+    result = []
+    previous_group_char = None
+    for group_char, group_size in spring_pattern:
+        if group_char == previous_group_char:
+            result[-1] = (group_char, group_size + result[-1][1])
+        elif group_size > 0:
+            result.append(group_char, group_size)
+            previous_group_char = group_char
+    return result
+
+
+def find_patterns(spring_pattern: List[Tuple[str, int]], broken_springs_spec: List[int]) -> Iterable[str]
+    if not start_pattern_could_match(spring_pattern, broken_springs_spec):
+        return
+    if not any("?" == char for char, _ in raw_spring_pattern):
+        yield ''.join(char * group_size for char, group_size in raw_spring_pattern)
+        return
+    first_question_group_index, question_group_size = next((group_index, group_size) for group_index, (group_char, group_size) in enumerate(spring_pattern) if group_char == "?" )
+    if question_group_size > 1:
+        remainging_question_group = [('?', question_group_size-1)]
+    else:
+        remainging_question_group = []
+    
+    for group_choice in [("#",1), (".",1)]:
+        yield from find_patterns(fuse_same_adjacent_groups(
+            spring_pattern[:first_question_group_index] 
+            + [group_choice]
+            + remainging_question_group
+            + spring_pattern[first_question_group_index+1:]
+        ))
+
