@@ -134,7 +134,12 @@ def find_compatible_choices(spring_pattern: str, broken_springs_spec: PatternSpe
         patterns_left = find_compatible_choices(pattern_part_left[:-len(imposed_left)], spec_left[:(-1 if imposed_left else len(spec_left)])
         patterns_right = find_compatible_choices(pattern_part_left[len(imposed_right):], spec[len(spec_left) + (1 if imposed_right else 0):])
         result.extend([
-            found_left + imposed_left + imposed_right + found_right
+            raw_spring_pattern[:len(raw_spring_pattern)-len(found_left)] 
+            + found_left 
+            + imposed_left 
+            + imposed_right 
+            + found_right 
+            + raw_spring_pattern[-len(raw_spring_pattern)+len(found_right):]
             for found_left in patterns_left
             for found_right in patterns_right
         ])
