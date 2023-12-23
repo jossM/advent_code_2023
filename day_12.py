@@ -15,7 +15,7 @@ def describe_pattern(springs_pattern: str) -> Tuple[Tuple[str, int]]:
     return tuple(group_description)
 
 
-def get_starting_pattern_match_index(springs_pattern: List[Tuple[str, int]], broken_springs_spec: List[int]) -> bool:
+def get_starting_pattern_match_index(springs_pattern: List[Tuple[str, int]], broken_springs_spec: Tuple[int]) -> bool:
     broken_spring_pattern = []
     last_broken_group_index = None
     last_unknown_block = None
@@ -27,18 +27,13 @@ def get_starting_pattern_match_index(springs_pattern: List[Tuple[str, int]], bro
         if char == "?":
             last_unknown_block = group_index
             break
+    broken_spring_pattern = tuple(broken_spring_pattern)
 
     if last_unknown_block is None:
         if broken_spring_pattern == broken_springs_spec:
             return len(springs_pattern)
         else:
             return None
-
-    question_count = sum(group_size for char, group_size in springs_pattern if char == "?")
-    broken_count = sum(group_size for char, group_size in springs_pattern if char == "#")
-    spec_count = sum(broken_springs_spec)
-    if not broken_count <= spec_count <= broken_count + question_count:
-        return None
 
     if last_broken_group_index is None:
         return last_unknown_block
@@ -68,31 +63,36 @@ def simplify_groups(spring_pattern: Tuple[Tuple[str, int]]) -> Tuple[Tuple[str, 
         elif group_size > 0:
             result.append((group_char, group_size if group_char != "." else 1))
             previous_group_char = group_char
-    return tuple([(char, group_size) for i, (char, group_size) in enumerate(result) if i not in [0, len(result)-1] or char != "."])
+    # result = tuple([(char, group_size) for i, (char, group_size) in enumerate(result) if i != 0 or char != "."])
+    result = tuple([(char, group_size) for i, (char, group_size) in enumerate(result) if i not in [0, len(result)-1] or char != "."])
+    return result
 
 
 @cache
-def find_patterns(spring_pattern: Tuple[Tuple[str, int], ...], broken_springs_spec: Tuple[int, ...]) -> Iterable[str]:
+def find_patterns(spring_pattern: Tuple[Tuple[str, int], ...], broken_springs_spec: Tuple[int, ...]) -> Tuple[Tuple[str, ...]]:
     starting_match_index = get_starting_pattern_match_index(spring_pattern, broken_springs_spec)
     if starting_match_index is None:
-        return
+        return tuple()
+
     if not any("?" == char for char, _ in spring_pattern):
-        yield ''.join(char * group_size for char, group_size in spring_pattern)
-        return
+        return tuple([tuple()])
     first_question_group_index, question_group_size = next(
         (group_index, group_size) for group_index, (group_char, group_size) in enumerate(spring_pattern) if group_char == "?")
     
     matched_pattern = spring_pattern[:starting_match_index]
-    truncated_broken_springs_spec = tuple(broken_springs_spec[:len([char for char, _ in matched_pattern if char == '#'])])
+    truncated_broken_springs_spec = tuple(broken_springs_spec[len([char for char, _ in matched_pattern if char == '#']):])
+    result = []
     for group_choice in [("#", 1), (".", 1)]:
-        truncated_pattern = simplify_groups(
-            list(spring_pattern[starting_match_index:first_question_group_index])
-            + [group_choice, ('?', question_group_size - 1)]
-            + list(spring_pattern[first_question_group_index + 1:])
-        )
-        
-        for sub_pattern in find_patterns(truncated_pattern, truncated_broken_springs_spec):
-            yield ''.join(char for char, _ in spring_pattern[:starting_match_index]) + sub_pattern
+        truncated_pattern = simplify_groups(tuple(chain(
+            spring_pattern[starting_match_index:first_question_group_index],
+            [group_choice, ('?', question_group_size - 1)],
+            spring_pattern[first_question_group_index + 1:],
+        )))
+        result.extend(tuple(
+            tuple(chain([group_choice[0]], sub_pattern))
+            for sub_pattern in find_patterns(truncated_pattern, truncated_broken_springs_spec)
+        ))
+    return tuple(result)
 
 multiplier = 1 if part_1 else 5
 
