@@ -1,11 +1,14 @@
 from functools import cache
 from typing import List, Tuple, Iterable
 
+PatternDesc = Tuple[Tuple[str, int], ...]
+PatternSpec = Tuple[int, ...]
+
 raw_spring_patterns = list(filter(bool, """""".split("\n"))) # fill this with input
 part_1 = True
 
 
-def describe_pattern(springs_pattern: str) -> Tuple[Tuple[str, int]]:
+def describe_pattern(springs_pattern: str) -> PatternDesc:
     group_description = []
     while springs_pattern:
         start_char = springs_pattern[0]
@@ -15,83 +18,126 @@ def describe_pattern(springs_pattern: str) -> Tuple[Tuple[str, int]]:
     return tuple(group_description)
 
 
-def get_starting_pattern_match_index(springs_pattern: List[Tuple[str, int]], broken_springs_spec: Tuple[int]) -> bool:
-    broken_spring_pattern = []
-    last_broken_group_index = None
-    last_unknown_block = None
-    
-    for group_index, (char, group_size) in enumerate(springs_pattern):
-        if char == "#":
-            broken_spring_pattern.append(group_size)
-            last_broken_group_index = group_index
-        if char == "?":
-            last_unknown_block = group_index
-            break
-    broken_spring_pattern = tuple(broken_spring_pattern)
-
-    if last_unknown_block is None:
-        if broken_spring_pattern == broken_springs_spec:
-            return len(springs_pattern)
-        else:
-            return None
-
-    if last_broken_group_index is None:
-        return last_unknown_block
-
-    exact_match_length = len(broken_spring_pattern)
-    if last_unknown_block == last_broken_group_index + 1:
-        exact_match_length -= 1
-    
-    if (
-            broken_spring_pattern[:exact_match_length] != broken_springs_spec[:exact_match_length]
-            or len(broken_spring_pattern) > len(broken_springs_spec)
-            or (exact_match_length != len(broken_spring_pattern) and broken_spring_pattern[exact_match_length] > broken_springs_spec[
-        exact_match_length])
-    ):
-        return None
-    if last_unknown_block == last_broken_group_index + 1:
-        return last_broken_group_index
-    return last_unknown_block
-
-
-def simplify_groups(spring_pattern: Tuple[Tuple[str, int]]) -> Tuple[Tuple[str, int]]:
-    result = []
-    previous_group_char = None
-    for group_char, group_size in spring_pattern:
-        if group_char == previous_group_char:
-            result[-1] = (group_char, group_size + result[-1][1] if group_char != "." else 1)
-        elif group_size > 0:
-            result.append((group_char, group_size if group_char != "." else 1))
-            previous_group_char = group_char
-    # result = tuple([(char, group_size) for i, (char, group_size) in enumerate(result) if i != 0 or char != "."])
-    result = tuple([(char, group_size) for i, (char, group_size) in enumerate(result) if i not in [0, len(result)-1] or char != "."])
-    return result
+def deduce_pattern(spec: PatternSpec, spec_to_remove: PatternSpec) -> PatternSpec:
+    if not spec_to_remove:
+        return spec
+    if spec_to_remove[-1] == spec[len(spec_to_remove) - 1]:
+        return spec[len(spec_to_remove):]
+    return tuple(chain([spec[len(spec_to_remove) - 1] - spec_to_remove[-1]], spec[len(spec_to_remove):])), 
 
 
 @cache
-def find_patterns(spring_pattern: Tuple[Tuple[str, int], ...], broken_springs_spec: Tuple[int, ...]) -> Tuple[Tuple[str, ...]]:
-    starting_match_index = get_starting_pattern_match_index(spring_pattern, broken_springs_spec)
-    if starting_match_index is None:
-        return tuple()
-
-    if not any("?" == char for char, _ in spring_pattern):
-        return tuple([tuple()])
-    first_question_group_index, question_group_size = next(
-        (group_index, group_size) for group_index, (group_char, group_size) in enumerate(spring_pattern) if group_char == "?")
+def max_spec_part_in_pattern(pattern_part: str, spec: PatternSpec) -> Tuple[PatternSpec, bool]:
+    """Find the maximum spec that can be fitted in a given pattern."""
+    if not spec:
+        return spec
     
-    matched_pattern = spring_pattern[:starting_match_index]
-    truncated_broken_springs_spec = tuple(broken_springs_spec[len([char for char, _ in matched_pattern if char == '#']):])
+    all_broken_pattern_desc = []
+    previous_group_char = None
+    for group_char, group_size in describe_pattern(pattern_part):
+        if group_char == "?":
+            group_char = "#"
+        if group_char == previous_group_char:
+            all_broken_pattern_desc[-1] = (group_char, group_size + result[-1][1])
+        else:
+            all_broken_pattern_desc.append((group_char, group_size))
+            previous_group_char = group_char
+
+    max_broken_spec = tuple(group_size for char, group_size in all_broken_pattern_desc if char == "#")
+    spec_iterator = iter(spec)
+    max_spec = []
+    try:
+        current_spec = next(spec_iterator)
+        for group_size in max_broken_spec:
+            while True:
+                if current_spec < group_size:
+                    max_spec.append(current_spec)
+                    group_size -= current_spec +1
+                    current_spec = next(spec_iterator)
+                elif current_spec == group_size:
+                    max_spec.append(current_spec)
+                    current_spec = next(spec_iterator)
+                    break
+                else:
+                    break
+    except StopIteration:
+        return spec
+    return tuple(max_spec)
+
+
+def spec_range(min_spec: PatternSpec, max_spec: PatternSpec)-> Iterable[PatternSpec]:
+    last_comparable_index = max(len(min_spec) - 1, 0)
+    max_spec = list(max_spec)
+    if (
+        len(max_spec) < len(min_spec) 
+        or min_spec[:last_comparable_index] != max_spec[:last_comparable_index] 
+        or min_spec[last_comparable_index] >= max_spec[last_comparable_index]
+    ):
+        raise ValueError(f"min spec is not lower than max_spec: ! {min_spec} < {max_spec}")
+    for spec_index in range(last_comparable_index, len(max_spec)):
+        min_range = 1 if spec_index != last_comparable_index else min_spec[last_comparable_index]
+        for last_elem_value in range(min_range, max_spec[spec_index] + 1):
+            yield tuple(max_spec[:spec_index] + [last_elem_value])
+
+
+@cache
+def find_compatible_choices(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tuple[str]:
+    raw_spring_pattern = spring_pattern
+    spring_pattern = spring_pattern.strip(".")
+    question_count = spring_pattern.count("?")
+    if question_count == 0:
+        if tuple(group_size for char, group_size in describe_pattern(spring_pattern) if char == "#") == broken_springs_spec:
+            return tuple([raw_spring_pattern])
+        else:
+            return tuple()
+    if not broken_springs_spec:
+        if "#" not in spring_pattern:
+            return tuple([raw_spring_pattern.replace("?", ".")])
+        else:
+            return tuple()
+    elif len(spring_pattern) <= 1:
+        if len(broken_springs_spec) > 1 or broken_springs_spec[0] > 1:
+            return tuple()
+        if broken_springs_spec and spring_pattern:
+            return tuple([raw_spring_pattern.replace("?", "#")])
+        if not spring_pattern and not broken_springs_spec:
+            return tuple([raw_spring_pattern.replace("?", "."))])
+        return tuple([])
+    
+    middel = int(len(spring_pattern)/2)
+    pattern_part_left, pattern_part_right =  spring_pattern[:middel], spring_pattern[middel:]
+    
+    max_left_pattern = max_max_spec_part_in_pattern(pattern_part_left, broken_springs_spec)
+    max_right_pattern_inverted = max_max_spec_part_in_pattern(pattern_part_right[::-1], broken_springs_spec[::-1])
+    max_right_pattern = max_right_pattern_inverted[::-1]
+    min_left_pattern = deduce_pattern(spec=broken_springs_spec[::-1], spec_to_remove=max_right_pattern_inverted)[::-1]
+
+    number_pattern_left = max(left_pattern[::-1].replace("?", "#").index('.'), 0)
+    number_pattern_right = max(pattern_part_right.replace("?", "#").index('.'), 0)
+
     result = []
-    for group_choice in [("#", 1), (".", 1)]:
-        truncated_pattern = simplify_groups(tuple(chain(
-            spring_pattern[starting_match_index:first_question_group_index],
-            [group_choice, ('?', question_group_size - 1)],
-            spring_pattern[first_question_group_index + 1:],
-        )))
-        result.extend(tuple(
-            tuple(chain([group_choice[0]], sub_pattern))
-            for sub_pattern in find_patterns(truncated_pattern, truncated_broken_springs_spec)
-        ))
+
+    for spec_left in spec_range(min_left_pattern, max_right_pattern):
+        spec_right = spec[len(spec_left):]
+        if spec_left[-1] != spec[len(spec_left) - 1]:
+            if spec_left[-1] > number_pattern_left or spec[len(spec_left) - 1] - spec_left[-1] > number_pattern_right:
+                continue
+            imposed_left = "#" * spec_left[-1]
+            if pattern_part_left[-len(imposed_left):].count('.') != 0:
+                continue
+            imposed_right = "#" * (spec[len(spec_left) - 1] - spec_left[-1])
+            if pattern_part_right[:-len(imposed_right)].count('.') != 0:
+                continue
+        else:
+            imposed_left = ""
+            imposed_right = ""
+        patterns_left = find_compatible_choices(pattern_part_left[:-len(imposed_left)], spec_left[:(-1 if imposed_left else len(spec_left)])
+        patterns_right = find_compatible_choices(pattern_part_left[len(imposed_right):], spec[len(spec_left) + (1 if imposed_right else 0):])
+        result.extend([
+            found_left + imposed_left + imposed_right + found_right
+            for found_left in patterns_left
+            for found_right in patterns_right
+        ])
     return tuple(result)
 
 multiplier = 1 if part_1 else 5
