@@ -127,7 +127,7 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
             return tuple([spring_pattern.replace("?", ".")])
         return tuple([])
 
-    result = []
+    result = set()
     
     # Recursive logic : split the pattern in two and see which part of the spec can be where
     middel = int(len(spring_pattern) / 2)
@@ -143,7 +143,7 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
             if not all_patterns_left:
                 continue
             all_patterns_right = find_patterns(pattern_part_right, spec_right)
-            result.extend([
+            result.update([
                 found_left + found_right
                 for found_left in all_patterns_left
                 for found_right in all_patterns_right
@@ -163,12 +163,13 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
         if not spec_is_possible:
             continue
         
-        result.extend([
+        result.update(
             found_left + imposed_left[-len(pattern_part_left):] + imposed_right[:len(pattern_part_right)] + found_right
             for found_left in find_patterns(pattern_part_left[:-len(imposed_left)], spec_left[:-1])
             for found_right in find_patterns(pattern_part_right[len(imposed_right):], spec_right)
-        ])
-    return tuple(result)
+        )
+    return tuple(sorted(result))
+
 
 multiplier = 1 if part_1 else 5
 
