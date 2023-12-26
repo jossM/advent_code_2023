@@ -171,14 +171,14 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
     return tuple(sorted(result))
 
 
-multiplier = 1 if part_1 else 5
-
 total = 0
 for pattern, raw_spec in map(lambda s: s.split(), raw_spring_patterns):
     spec = list(map(lambda s: int(s), raw_spec.split(',')))
     pattern = '?'.join([pattern] * multiplier)
     spec *= multiplier
     print(f"Studying {pattern}, {spec}")
-    possibilities = len(list(find_patterns(simplify_groups(describe_pattern('?'.join(pattern for i in range(5)))), tuple(spec*5))))
+    possibilities = len(list(find_patterns(pattern, tuple(spec))))
     print(f"Found {possibilities} for pattern {pattern}")
     total += possibilities
+
+print(f'Total {total}')
