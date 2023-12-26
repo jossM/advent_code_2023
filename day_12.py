@@ -92,20 +92,33 @@ def spec_range(min_spec: PatternSpec, max_spec: PatternSpec) -> Iterable[Pattern
 
 @cache
 def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tuple[str]:
+    # Recursivity out conditions :
     question_count = spring_pattern.count("?")
     if question_count == 0:
         if tuple(group_size for char, group_size in describe_pattern(spring_pattern) if char == "#") == broken_springs_spec:
             return tuple([spring_pattern])
         else:
             return tuple()
-    if broken_springs_spec and spring_pattern.count("#") > sum(broken_springs_spec) or not broken_springs_spec and "#" in spring_pattern:
-        return tuple()
-    if not broken_springs_spec:
+    
+    if broken_springs_spec: # if we have a spec, check special cases that simplify solutions
+        if spring_pattern.count("#") > sum(broken_springs_spec):
+            return tuple()
+        if len(broken_springs_spec) == 1:
+            if "#" * broken_springs_spec[0] in spring_pattern:
+                return tuple([spring_pattern.replace("?", ".")])
+            if broken_springs_spec[0] == len(spring_pattern):
+                if '.' not in spring_pattern:
+                    return tuple(spring_pattern.replace("?", "#"))
+                else:
+                    return tuple()
+    
+    else: # broken_springs_spec is empty no # block expected
         if "#" not in spring_pattern:
             return tuple([spring_pattern.replace("?", ".")])
         else:
             return tuple()
-    elif len(spring_pattern) <= 1:
+
+    if len(spring_pattern) <= 1:
         if len(broken_springs_spec) > 1 or broken_springs_spec[0] > 1:
             return tuple()
         if broken_springs_spec and spring_pattern:
@@ -114,75 +127,48 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
             return tuple([spring_pattern.replace("?", ".")])
         return tuple([])
 
+    result = []
+    
+    # Recursive logic : split the pattern in two and see which part of the spec can be where
     middel = int(len(spring_pattern) / 2)
     pattern_part_left, pattern_part_right = spring_pattern[:middel], spring_pattern[middel:]
     max_left_pattern = max_spec_part_in_pattern(pattern_part_left, broken_springs_spec)
     max_right_pattern_inverted = max_spec_part_in_pattern(pattern_part_right[::-1], broken_springs_spec[::-1])
-    max_right_pattern = max_right_pattern_inverted[::-1]
     min_left_pattern = deduce_pattern(spec=broken_springs_spec[::-1], spec_to_remove=max_right_pattern_inverted)[::-1]
-    
-    try:
-        number_pattern_left = pattern_part_left[::-1].replace("?", "#").index('.')
-    except ValueError:
-        number_pattern_left = len(pattern_part_left)
-    try:
-        number_pattern_right = pattern_part_right.replace("?", "#").index('.')
-    except ValueError:
-        number_pattern_right = len(pattern_part_right)
-        
-    result = []
     for spec_left in spec_range(min_left_pattern, max_left_pattern):
         spec_right = broken_springs_spec[len(spec_left):]
-        # check for break
-        if spec_left and spec_left[-1] != broken_springs_spec[len(spec_left) - 1]:
-            if spec_left[-1] > number_pattern_left:
-                continue
-            if broken_springs_spec[len(spec_left) - 1] - spec_left[-1] > number_pattern_right:
-                continue
-            imposed_left =  "." + "#" * spec_left[-1]
-            if (pattern_part_left[-len(imposed_left) + 1:].count('.') != 0) \
-                    or (len(imposed_left) < len(pattern_part_left) and pattern_part_left[-len(imposed_left)] == "#"):
-                continue
-            imposed_right = "#" * (broken_springs_spec[len(spec_left) - 1] - spec_left[-1]) + "."
-            if pattern_part_right[:len(imposed_right) - 1].count('.') != 0 \
-                    or (len(imposed_right) - 1 < len(pattern_part_right) and pattern_part_right[len(imposed_right)-1]) == "#":
-                continue
-        else:
-            imposed_left = ""
-            imposed_right = ""
-        
-        if imposed_left and len(imposed_left) >= len(pattern_part_left):
-            if len(spec_left) == 1:
-                all_patterns_left = [""]
-            else:
-                all_patterns_left = []
-        elif imposed_left:
-            all_patterns_left = find_patterns(pattern_part_left[:-len(imposed_left)], spec_left[:-1])
-        else:
+        # split is not supposed to be in the middle of a group
+        if not spec_left or spec_left[-1] == broken_springs_spec[len(spec_left) - 1]:  
             all_patterns_left = find_patterns(pattern_part_left, spec_left)
-        all_patterns_left = [p + imposed_left[-len(pattern_part_left):] for p in all_patterns_left]
-        if not all_patterns_left:
+            if not all_patterns_left:
+                continue
+            all_patterns_right = find_patterns(pattern_part_right, spec_right)
+            result.extend([
+                found_left + found_right
+                for found_left in all_patterns_left
+                for found_right in all_patterns_right
+                if not found_left.endswith("#") or found_right.startswith(".")
+            ])
+            continue
+        # a group is supposed to be split in the two parts
+        imposed_left, imposed_right = "." + "#" * spec_left[-1], "#" * (broken_springs_spec[len(spec_left) - 1] - spec_left[-1]) + "."
+        spec_is_possible = True
+        for imposed, pattern in [(imposed_left[::-1], pattern_part_left[::-1]), (imposed_right, pattern_part_right)]:
+            if "." in pattern[:len(imposed) - 1]:
+                spec_is_possible = False
+                break
+            if len(pattern) >= len(imposed) and pattern[len(imposed) - 1] == "#":
+                spec_is_possible = False
+                break
+        if not spec_is_possible:
             continue
         
-        if imposed_right and len(imposed_right) >= len(pattern_part_right):
-            if len(broken_springs_spec) <= len(spec_left):
-                all_patterns_right = [""]
-            else:
-                all_patterns_right = []
-        elif imposed_right:
-            all_patterns_right = find_patterns(pattern_part_right[len(imposed_right):], broken_springs_spec[len(spec_left):])
-        else:
-            all_patterns_right = find_patterns(pattern_part_right, broken_springs_spec[len(spec_left):])
-        all_patterns_right = [imposed_right[:len(pattern_part_right)] + p for p in all_patterns_right]
-        all_patterns_found = [
-            found_left + found_right
-            for found_left in all_patterns_left
-            for found_right in all_patterns_right
-            if imposed_left or not found_left.endswith("#") or found_right.startswith(".")
-        ]
-        result.extend(all_patterns_found)
+        result.extend([
+            found_left + imposed_left[-len(pattern_part_left):] + imposed_right[:len(pattern_part_right)] + found_right
+            for found_left in find_patterns(pattern_part_left[:-len(imposed_left)], spec_left[:-1])
+            for found_right in find_patterns(pattern_part_right[len(imposed_right):], spec_right)
+        ])
     return tuple(result)
-
 
 multiplier = 1 if part_1 else 5
 
