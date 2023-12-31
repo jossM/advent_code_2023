@@ -1,24 +1,17 @@
+from dataclasses import dataclass, asdict
+from datetime import datetime
 from itertools import chain
 from functools import cache
 import re
-from typing import List, Tuple, Iterable
+from typing import Tuple, Iterable
 
-
-PatternDesc = Tuple[Tuple[str, int], ...]
 PatternSpec = Tuple[int, ...]
 
 raw_spring_patterns = list(filter(bool, """""".split("\n"))) # fill this with input
-part_1 = True
+part_1 = False
 
 
-def describe_pattern(springs_pattern: str) -> PatternDesc:
-    group_description = []
-    while springs_pattern:
-        start_char = springs_pattern[0]
-        start_group = next(re.finditer(re.escape(start_char) + "+", springs_pattern))
-        group_description.append((start_char, start_group.end()))
-        springs_pattern = springs_pattern[start_group.end():]
-    return tuple(group_description)
+block_pattern = re.compile("#+")
 
 
 def deduce_pattern(spec: PatternSpec, spec_to_remove: PatternSpec) -> PatternSpec:
@@ -30,28 +23,18 @@ def deduce_pattern(spec: PatternSpec, spec_to_remove: PatternSpec) -> PatternSpe
 
 
 @cache
-def max_spec_part_in_pattern(pattern_part: str, spec: PatternSpec) -> Tuple[PatternSpec, bool]:
+def max_spec_part_in_pattern(pattern_part: str, spec: PatternSpec) -> PatternSpec:
     """Find the maximum spec that can be fitted in a given pattern."""
     if not spec:
         return spec
 
-    all_broken_pattern_desc = []
-    previous_group_char = None
-    for group_char, group_size in describe_pattern(pattern_part):
-        if group_char == "?":
-            group_char = "#"
-        if group_char == previous_group_char:
-            all_broken_pattern_desc[-1] = (group_char, group_size + all_broken_pattern_desc[-1][1])
-        else:
-            all_broken_pattern_desc.append((group_char, group_size))
-            previous_group_char = group_char
-
-    max_broken_spec = tuple(group_size for char, group_size in all_broken_pattern_desc if char == "#")
-    spec_iterator = iter(spec)
+    max_broken_spec = tuple(group.end() - group.start() for group in block_pattern.finditer(pattern_part.replace('?', "#")))
+    spec_iterator = iter(max_broken_spec)
     max_spec = []
     try:
         current_spec = next(spec_iterator)
         last_group_size_too_small = False
+        group_size = 0
         for group_size in max_broken_spec:
             last_group_size_too_small = False
             while True:
@@ -85,50 +68,83 @@ def spec_range(min_spec: PatternSpec, max_spec: PatternSpec) -> Iterable[Pattern
     if not min_spec:
         yield tuple()
     for spec_index in range(max(last_comparable_index, 0), len(max_spec)):
-        min_range = 1 if spec_index != last_comparable_index or not min_spec else min_spec[last_comparable_index] 
+        min_range = 1 if spec_index != last_comparable_index or not min_spec else min_spec[last_comparable_index]
         for last_elem_value in range(min_range, max_spec[spec_index] + 1):
             yield tuple(max_spec[:spec_index] + [last_elem_value])
 
 
+@dataclass(frozen=True)
+class PatternCount:
+    starts_with_dot: int = 0
+    ends_with_dot: int = 0
+    dot_on_sides: int = 0
+    no_dot_on_sides: int = 0
+
+    def __int__(self):
+        return sum(asdict(self).values())
+
+    def __bool__(self):
+        return bool(int(self))
+
+    def __add__(self, other: "PatternCount"):
+        return PatternCount(**{k: getattr(other, k) + v for k, v in asdict(self).items()})
+
+
+ZERO_PATTERN = PatternCount()
+
+
 @cache
-def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tuple[str]:
+def count_pattern(spring_pattern: str) -> PatternCount:
+    if spring_pattern.startswith(".") and spring_pattern.endswith("."):
+        return PatternCount(dot_on_sides=1)
+    elif spring_pattern.startswith("."):
+        return PatternCount(starts_with_dot=1)
+    elif spring_pattern.endswith("."):
+        return PatternCount(ends_with_dot=1)
+    return PatternCount(no_dot_on_sides=1)
+
+
+@cache
+def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> PatternCount:
     # Recursivity out conditions :
     question_count = spring_pattern.count("?")
     if question_count == 0:
-        if tuple(group_size for char, group_size in describe_pattern(spring_pattern) if char == "#") == broken_springs_spec:
-            return tuple([spring_pattern])
+        if tuple(block.end() - block.start() for block in block_pattern.finditer(spring_pattern)) == broken_springs_spec:
+            return count_pattern(spring_pattern)  # tuple([spring_pattern])
         else:
-            return tuple()
-    
-    if broken_springs_spec: # if we have a spec, check special cases that simplify solutions
+            return ZERO_PATTERN  # tuple()
+
+    if broken_springs_spec:  # if we have a spec, check special cases that simplify solutions
         if spring_pattern.count("#") > sum(broken_springs_spec):
-            return tuple()
+            return ZERO_PATTERN  # tuple()
+        if sum(broken_springs_spec) + len(broken_springs_spec) - 1 > len(spring_pattern):
+            return ZERO_PATTERN  # tuple()
         if len(broken_springs_spec) == 1:
             if "#" * broken_springs_spec[0] in spring_pattern:
-                return tuple([spring_pattern.replace("?", ".")])
+                return count_pattern(spring_pattern.replace("?", "."))
             if broken_springs_spec[0] == len(spring_pattern):
                 if '.' not in spring_pattern:
-                    return tuple(spring_pattern.replace("?", "#"))
+                    return PatternCount(no_dot_on_sides=1)  # tuple([spring_pattern.replace("?", "#")])
                 else:
-                    return tuple()
-    
-    else: # broken_springs_spec is empty no # block expected
+                    return ZERO_PATTERN  # tuple()
+
+    else:  # broken_springs_spec is empty no # block expected
         if "#" not in spring_pattern:
-            return tuple([spring_pattern.replace("?", ".")])
+            return PatternCount(dot_on_sides=1)  # tuple([spring_pattern.replace("?", ".")])
         else:
-            return tuple()
+            return ZERO_PATTERN  # tuple()
 
-    if len(spring_pattern) <= 1:
+    if len(spring_pattern) == 1:
         if len(broken_springs_spec) > 1 or broken_springs_spec[0] > 1:
-            return tuple()
-        if broken_springs_spec and spring_pattern:
-            return tuple([spring_pattern.replace("?", "#")])
-        if not spring_pattern and not broken_springs_spec:
-            return tuple([spring_pattern.replace("?", ".")])
-        return tuple([])
+            return ZERO_PATTERN  # tuple()
+        if broken_springs_spec and spring_pattern != ".":
+            return count_pattern(spring_pattern.replace("?", "#"))
+        if spring_pattern == "." and not broken_springs_spec:
+            return count_pattern(spring_pattern.replace("?", "."))
+        return ZERO_PATTERN  # tuple()
 
-    result = set()
-    
+    result: PatternCount = ZERO_PATTERN  # : [str] = []
+
     # Recursive logic : split the pattern in two and see which part of the spec can be where
     middel = int(len(spring_pattern) / 2)
     pattern_part_left, pattern_part_right = spring_pattern[:middel], spring_pattern[middel:]
@@ -138,47 +154,97 @@ def find_patterns(spring_pattern: str, broken_springs_spec: PatternSpec) -> Tupl
     for spec_left in spec_range(min_left_pattern, max_left_pattern):
         spec_right = broken_springs_spec[len(spec_left):]
         # split is not supposed to be in the middle of a group
-        if not spec_left or spec_left[-1] == broken_springs_spec[len(spec_left) - 1]:  
-            all_patterns_left = find_patterns(pattern_part_left, spec_left)
-            if not all_patterns_left:
+        if not spec_left or spec_left[-1] == broken_springs_spec[len(spec_left) - 1]:
+            left = find_patterns(pattern_part_left, spec_left)
+            if not left:
                 continue
-            all_patterns_right = find_patterns(pattern_part_right, spec_right)
-            result.update([
-                found_left + found_right
-                for found_left in all_patterns_left
-                for found_right in all_patterns_right
-                if not found_left.endswith("#") or found_right.startswith(".")
-            ])
+            right = find_patterns(pattern_part_right, spec_right)
+            if not right:
+                continue
+            found_patterns = PatternCount(
+                starts_with_dot=
+                    (left.starts_with_dot + left.dot_on_sides) * right.starts_with_dot + left.dot_on_sides * right.no_dot_on_sides,
+                    # .[]? * .[]# + .[]. * #[]#
+                dot_on_sides=
+                    (left.starts_with_dot + left.dot_on_sides) * right.dot_on_sides + left.dot_on_sides * right.ends_with_dot,
+                    # .[]? * .[]. + .[]. * #[].
+                ends_with_dot=
+                    (left.ends_with_dot + left.no_dot_on_sides) * right.dot_on_sides + left.ends_with_dot * right.ends_with_dot,
+                    # #[]? * .[]. + #[]. * #[].
+                no_dot_on_sides=(left.ends_with_dot + left.no_dot_on_sides) * right.starts_with_dot + left.ends_with_dot * right.no_dot_on_sides,
+                    # #[]? * .[]# + #[]. * #[]#
+            )
+            result += found_patterns
+            #.extend(
+            #    found_left + found_right
+            #    for found_left in left
+            #    for found_right in right
+            #    if not found_left.endswith("#") or found_right.startswith(".")
+            #)
             continue
         # a group is supposed to be split in the two parts
         imposed_left, imposed_right = "." + "#" * spec_left[-1], "#" * (broken_springs_spec[len(spec_left) - 1] - spec_left[-1]) + "."
         spec_is_possible = True
-        for imposed, pattern in [(imposed_left[::-1], pattern_part_left[::-1]), (imposed_right, pattern_part_right)]:
-            if "." in pattern[:len(imposed) - 1]:
+        for imposed, on_side_pattern in [(imposed_left[::-1], pattern_part_left[::-1]), (imposed_right, pattern_part_right)]:
+            if "." in on_side_pattern[:len(imposed) - 1]:
                 spec_is_possible = False
                 break
-            if len(pattern) >= len(imposed) and pattern[len(imposed) - 1] == "#":
+            if len(on_side_pattern) >= len(imposed) and on_side_pattern[len(imposed) - 1] == "#":
+                spec_is_possible = False
+                break
+            if len(imposed) - 1 > len(on_side_pattern):
                 spec_is_possible = False
                 break
         if not spec_is_possible:
             continue
-        
-        result.update(
-            found_left + imposed_left[-len(pattern_part_left):] + imposed_right[:len(pattern_part_right)] + found_right
-            for found_left in find_patterns(pattern_part_left[:-len(imposed_left)], spec_left[:-1])
-            for found_right in find_patterns(pattern_part_right[len(imposed_right):], spec_right)
+        truncated_left = pattern_part_left[:-len(imposed_left)]
+        if not truncated_left and len(spec_left) <= 1:
+            left = count_pattern(imposed_left[-len(pattern_part_left):])
+        else:
+            left = find_patterns(truncated_left, spec_left[:-1])
+        if not left:
+            continue
+        truncated_right = pattern_part_right[len(imposed_right):]
+        if not truncated_right and not spec_right:
+            right = count_pattern(imposed_right[:len(pattern_part_right)])
+        else:
+            right = find_patterns(pattern_part_right[len(imposed_right):], spec_right)
+        if not right:
+            continue
+        found_patterns = PatternCount(
+            starts_with_dot=(left.starts_with_dot + left.dot_on_sides) * (right.starts_with_dot + right.no_dot_on_sides),
+            # .[]? * ?[]#
+            dot_on_sides=
+            (left.starts_with_dot + left.dot_on_sides) * (right.dot_on_sides + right.ends_with_dot),
+            # .[]? * ?[].
+            ends_with_dot=
+            (left.ends_with_dot + left.no_dot_on_sides) * (right.dot_on_sides + right.ends_with_dot),
+            # #[]? * ?[].
+            no_dot_on_sides=(left.ends_with_dot + left.no_dot_on_sides) * (right.starts_with_dot + right.no_dot_on_sides),
+            # #[]? * ?[]#
         )
-    return tuple(sorted(result))
+
+        result += found_patterns
+        #.extend(
+        #   found_left + imposed_left[-len(pattern_part_left):] + imposed_right[:len(pattern_part_right)] + found_right
+        #   for found_left in all_patterns_found_left
+        #    for found_right in all_patterns_found_right
+        #)
+    return result
 
 
-total = 0
-for pattern, raw_spec in map(lambda s: s.split(), raw_spring_patterns):
-    spec = list(map(lambda s: int(s), raw_spec.split(',')))
-    pattern = '?'.join([pattern] * multiplier)
-    spec *= multiplier
-    print(f"Studying {pattern}, {spec}")
-    possibilities = len(list(find_patterns(pattern, tuple(spec))))
-    print(f"Found {possibilities} for pattern {pattern}")
-    total += possibilities
+multiplier = 1 if part_1 else 5
+if __name__ == "__main__":
+    total = 0
+    start = datetime.now()
+    print("Start now")
+    for pattern, raw_spec in map(lambda s: s.split(), raw_spring_patterns):
+        spec = list(map(lambda s: int(s), raw_spec.split(',')))
+        pattern = '?'.join([pattern] * multiplier)
+        spec *= multiplier
+        print(f"Studying {pattern}, {spec}")
+        possibilities = find_patterns(pattern, tuple(spec))
+        total += int(possibilities)
+    print(f"Found {total} in {datetime.now() - start}")
+    print(f'Total {total}')  # Found 10^13 combinations in 0:00:20.313506
 
-print(f'Total {total}')
