@@ -13,14 +13,14 @@ path_to_save_advancement = ''.rstrip('/')  # fill this
 file_prefixes = 'advent_of_code_day_17_part_' + ('1' if part_1 else "2") + "_step_"
 
 
-class Direction(IntEnum):
+class Direction(IntEnum):  # using IntEnum enable using heapq which is key for perf
     right = 0
     down = 1
     left = 2
     up = 3
 
 
-class PointState(NamedTuple):
+class PointState(NamedTuple):  # using NamedTuple enable using heapq which is key for perf
     x: int
     y: int
     prev_direction: Direction
@@ -39,13 +39,16 @@ if __name__ == '__main__':
     optimal_heat_loss = {PointState(0, 0, d, 0): 0 for d in Direction}
     state_to_explore = [(0, PointState(0, 0, Direction.right, 0))]
     print(f"exploring map of size {map_layout.shape} - {map_layout.shape[0] * map_layout.shape[1]} tiles")
+
+    # A modified version of Dijkstra algorithm will be used for that
     reached = np.zeros(map_layout.shape, dtype=np.uint)
     step = 0
     computation_start = datetime.now()
     min_heatloss = None
+    
     while state_to_explore:
 
-        # monitoring (to be more patient)
+        # monitoring (to be more patient as first version run for almost 1h before usage of heapq)
         if step % 50000 == 0:
             plt.imshow(reached, cmap='hot', interpolation='nearest')
             plt.savefig(f'{path_to_save_advancement}/{file_prefixes}{step}.png')
@@ -60,18 +63,19 @@ if __name__ == '__main__':
                   f' {datetime.now() - computation_start} - {to_explore.sum()} in queue.')
         step += 1
 
+        # cutoff optim once we have reached a first solution
         heat_loss_so_far, start_state = heapq.heappop(state_to_explore)
         if min_heatloss is not None and optimal_heat_loss[start_state] >= min_heatloss:
             continue
 
-        
         potential_directions = set(Direction)
-        
+
+        # turning constraints
         if start_state.straight_line_count >= max_straight_line:
-            # no more than 3 straight lines consecutives
+            # no more than x straight lines consecutives
             potential_directions -= {start_state.prev_direction}
         elif start_state.straight_line_count != 0:  # excludes starting point
-            # no more than 3 straight lines consecutives no more than 90° turns
+            # no more than 90° turns
             if start_state.prev_direction == Direction.right:
                 potential_directions -= {Direction.left}
             elif start_state.prev_direction == Direction.down:
@@ -82,7 +86,7 @@ if __name__ == '__main__':
                 potential_directions -= {Direction.down}
 
         for d in potential_directions:
-            if d == start_state.prev_direction and start_state.straight_line_count > 0:
+            if d == start_state.prev_direction and start_state.straight_line_count > 0:  # start_state.straight_line_count is only the starting point
                 step_size = 1
                 next_straight_line_size = start_state.straight_line_count + 1
             else:
@@ -97,12 +101,14 @@ if __name__ == '__main__':
             else:  # Direction.up:
                 next_location = (start_state.x-step_size, start_state.y)
 
+            # ensure we stay in the grid
             if (
                     next_location[0] < 0 or next_location[0] >= map_layout.shape[0]
                     or next_location[1] < 0 or next_location[1] >= map_layout.shape[1]
             ):
                 continue
 
+            # jump start direction changes by going the min straight line distance all at once
             if d == Direction.right:
                 path_heat_loss = map_layout[start_state.x, start_state.y+1:next_location[1]+1].sum()
             elif d == Direction.down:
@@ -116,20 +122,23 @@ if __name__ == '__main__':
             cost_to_reach_position = heat_loss_so_far + path_heat_loss
             next_state = PointState(*next_location, d, next_straight_line_size)
 
+            # cut off to ensure the exploration frontier advances and limits exploration of inner pathes that can't be optimum
             if next_state in optimal_heat_loss and optimal_heat_loss[next_state] <= cost_to_reach_position:
                 continue
             optimal_heat_loss[next_state] = cost_to_reach_position
 
+            # cut off to find the optimum
             if next_state.x == map_layout.shape[0] - 1 and next_state.y == map_layout.shape[1] - 1 and (
                min_heatloss is None or cost_to_reach_position < min_heatloss
             ):
                 min_heatloss = cost_to_reach_position
+            heapq.heappush(state_to_explore, (cost_to_reach_position, next_state))  # heapq usage is key for perf
 
-            position_product = next_location[0] * next_location[1]
-            heapq.heappush(state_to_explore, (cost_to_reach_position, next_state))
+    # Technically at this point we are all done but it's nice to see the actual path.
     print(f"Finished in {step} steps after exploring {np.count_nonzero(reached!=0)} tiles ({np.count_nonzero(reached!=0)/(map_layout.shape[0] * map_layout.shape[1]) * 100} %)")
     print(f"Minimum heat loss path found with {min_heatloss} in {datetime.now() - computation_start}")
 
+    # Nice to have for analysis
     # display the actual path
     path = np.zeros(map_layout.shape, dtype=bool)
     for d in Direction:
