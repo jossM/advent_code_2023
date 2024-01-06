@@ -64,11 +64,9 @@ if __name__ == '__main__':
         if min_heatloss is not None and optimal_heat_loss[start_state] >= min_heatloss:
             continue
 
-        if start_state.straight_line_count >= min_straight_line:
-            potential_directions = set(Direction)
-        else:
-            potential_directions = {start_state.prev_direction}
-
+        
+        potential_directions = set(Direction)
+        
         if start_state.straight_line_count >= max_straight_line:
             # no more than 3 straight lines consecutives
             potential_directions -= {start_state.prev_direction}
