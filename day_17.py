@@ -6,9 +6,10 @@ from typing import NamedTuple
 import numpy as np
 import matplotlib.pyplot as plt
 
-raw_map = """""".strip()
-part_1 = False
-path_to_save_advancement = '/Users/josselinmahe/Downloads/'.rstrip('/')
+raw_map = """
+""".strip()  # fill this with input
+part_1 = True
+path_to_save_advancement = ''.rstrip('/')  # fill this
 file_prefixes = 'advent_of_code_day_17_part_' + ('1' if part_1 else "2") + "_step_"
 
 
@@ -105,13 +106,13 @@ if __name__ == '__main__':
                 continue
 
             if d == Direction.right:
-                path_heat_loss = map_layout[start_state.x, start_state.y+1:start_state.y+step_size+1].sum()
+                path_heat_loss = map_layout[start_state.x, start_state.y+1:next_location[1]+1].sum()
             elif d == Direction.down:
-                path_heat_loss = map_layout[start_state.x+1:start_state.x+step_size+1, start_state.y].sum()
+                path_heat_loss = map_layout[start_state.x+1:next_location[0]+1, start_state.y].sum()
             elif d == Direction.left:
-                path_heat_loss = map_layout[start_state.x, start_state.y-step_size:start_state.y].sum()
+                path_heat_loss = map_layout[start_state.x, next_location[1]:start_state.y].sum()
             else:  # Direction.up:
-                path_heat_loss = map_layout[start_state.x-step_size:start_state.x, start_state.y].sum()
+                path_heat_loss = map_layout[next_location[0]:start_state.x, start_state.y].sum()
 
             reached[next_location] += 1
             cost_to_reach_position = heat_loss_so_far + path_heat_loss
@@ -129,7 +130,7 @@ if __name__ == '__main__':
             position_product = next_location[0] * next_location[1]
             heapq.heappush(state_to_explore, (cost_to_reach_position, next_state))
     print(f"Finished in {step} steps after exploring {np.count_nonzero(reached!=0)} tiles ({np.count_nonzero(reached!=0)/(map_layout.shape[0] * map_layout.shape[1]) * 100} %)")
-    print(f"Minimum heat loss path found with {optimal_heat_loss[start_state]} in {datetime.now() - computation_start}")
+    print(f"Minimum heat loss path found with {min_heatloss} in {datetime.now() - computation_start}")
 
     # display the actual path
     path = np.zeros(map_layout.shape, dtype=bool)
@@ -141,6 +142,7 @@ if __name__ == '__main__':
                 break
     start_state = end_state
     current_total_heat_loss = optimal_heat_loss[start_state]
+    turn_points = [((end_state.x, end_state.y), current_total_heat_loss)]
     while (start_state.x, start_state.y) != (0, 0):
         if start_state.prev_direction == Direction.right:
             path_heat_loss = map_layout[start_state.x, start_state.y-start_state.straight_line_count+1:start_state.y+1].sum()
@@ -163,6 +165,7 @@ if __name__ == '__main__':
             for i in range(start_state.straight_line_count):
                 path[start_state.x+i, start_state.y] = True
         current_total_heat_loss -= path_heat_loss
+        turn_points.insert(0, (new_location, current_total_heat_loss))
         for d in Direction:
             if d == start_state.prev_direction:
                 continue
@@ -173,3 +176,4 @@ if __name__ == '__main__':
                     break
     plt.imshow(path, cmap='hot', interpolation='nearest')
     plt.savefig(f'{path_to_save_advancement}/{file_prefixes}optimal_path.png')
+    print('Optimal path:\n' + '\n'.join(map(lambda i: f"Point {i[0]} - heat loss {i[1]}", turn_points)))
