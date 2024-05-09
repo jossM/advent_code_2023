@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-raw_almanach = """"" # fill this
+raw_almanach = """""" # fill this
 part_1 = False
 
 almanach_parts = raw_almanach.split("\n\n")
@@ -27,7 +27,7 @@ for raw_map in raw_mappings:
 
 mapped_ranges = seeds_ranges
 for mapping_name, range_mappings in mappings.items():
-    print("-"* 3 + ">" + mapping_name)
+    print("-" * 3 + ">" + mapping_name)
 
     # join ranges if they are consecutives (this should be a function but this is an advent code)
     mapped_ranges = sorted(mapped_ranges)
@@ -65,8 +65,7 @@ for mapping_name, range_mappings in mappings.items():
         elif range_map[0] <= first_minimised_range[0] and first_minimised_range[1] <= range_map[1]:  # |xx|xyxy|xx|
             next_mapped_ranges.append(map_range(first_minimised_range))
             minimised_ranges.pop(0)
-        elif first_minimised_range[0] < range_map[0] <= first_minimised_range[1] \
-                and first_minimised_range[1] < range_map[1]:  # |yy|xyxy|xx|
+        elif first_minimised_range[0] < range_map[0] <= first_minimised_range[1] < range_map[1]:  # |yy|xyxy|xx|
             next_mapped_ranges.extend([
                 (first_minimised_range[0], range_map[0]),
                 map_range((range_map[0] + 1, first_minimised_range[1]))

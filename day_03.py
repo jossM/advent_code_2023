@@ -2,8 +2,6 @@ from collections import defaultdict
 from itertools import chain
 import re
 
-from collections import defaultdict
-
 
 schema = list(filter(bool, """""".split("\n"))) # fill this with input
 part_2 = False

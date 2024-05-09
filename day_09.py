@@ -7,10 +7,11 @@ next_line_value = []
 for instabilities in instability_lines:
     derived_instabilities = [instabilities]
     while not all(i == 0 for i in derived_instabilities[-1]):
-          derived_instabilities.append([derived_instabilities[-1][i+1] - derived_instabilities[-1][i] for i in range(len(derived_instabilities[-1]) - 1)])
-    print("_"*10 + "\nfirst derived_instabilities")
+        derived_instabilities.append([derived_instabilities[-1][i + 1] - derived_instabilities[-1][i] for i in
+                                      range(len(derived_instabilities[-1]) - 1)])
+    print("_" * 10 + "\nfirst derived_instabilities")
     for l in derived_instabilities:
-      print(l)
+        print(l)
 
     derived_instabilities[-1].append(0)
     for i in range(len(derived_instabilities) - 1):

@@ -3,27 +3,28 @@ from dataclasses import dataclass, asdict
 pipe_map = list(filter(bool, """""".split("\n")))
 part_1 = True
 
+
 @dataclass(frozen=True)
 class Connection:
-  up: bool = False
-  right: bool = False
-  down: bool = False
-  left: bool = False
+    up: bool = False
+    right: bool = False
+    down: bool = False
+    left: bool = False
+
 
 symbol_connections = {
-  "|": Connection(up=True, down=True),
-  "-": Connection(left=True, right=True),
-  "L": Connection(up=True, right=True),
-  "J": Connection(up=True, left=True),
-  "7": Connection(down=True, left=True),
-  "F": Connection(down=True, right=True),
-  ".": Connection(),
-  "S": Connection(up=True, down=True, right=True, left=True),
+    "|": Connection(up=True, down=True),
+    "-": Connection(left=True, right=True),
+    "L": Connection(up=True, right=True),
+    "J": Connection(up=True, left=True),
+    "7": Connection(down=True, left=True),
+    "F": Connection(down=True, right=True),
+    ".": Connection(),
+    "S": Connection(up=True, down=True, right=True, left=True),
 }
 
-
 starting_locations = {(line_index, line.index("S")) for line_index, line in enumerate(pipe_map) if "S" in line}
-distance_from_start = [[None]*len(line) for line in pipe_map]
+distance_from_start = [[None] * len(line) for line in pipe_map]
 for x, y in starting_locations:
     distance_from_start[x][y] = 0
 
@@ -54,12 +55,13 @@ while all_search_locations:
                 connected_locations.append((x, y - 1))
                 local_connections['left'] = True
         main_tiles_connections[x][y] = Connection(**local_connections)
-      
+
         for con_x, con_y in connected_locations:
-            if distance_from_start[con_x][con_y] is None or distance_from_start[con_x][con_y] > distance_from_start[x][y] + 1:
+            if distance_from_start[con_x][con_y] is None or distance_from_start[con_x][con_y] > distance_from_start[x][
+                y] + 1:
                 distance_from_start[con_x][con_y] = distance_from_start[x][y] + 1
                 next_all_search_locations.add((con_x, con_y))
-        
+
     all_search_locations = next_all_search_locations
 if part_1:
     print(max([dist for line in distance_from_start for dist in line if dist is not None]))
@@ -115,8 +117,8 @@ else:
         external_interlocked_tiles |= new_external_interlocked_tiles
 
     belonging_tiles_count = sum(
-      int(not len(external_interlocked_tiles.intersection([(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)])))
-      for x, line in enumerate(pipe_map) for y, char in enumerate(line)
+        int(not len(external_interlocked_tiles.intersection([(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)])))
+        for x, line in enumerate(pipe_map) for y, char in enumerate(line)
     )
     print(f"tiles in the loop {belonging_tiles_count}")
     # useless bit of code but displays pretty map
@@ -124,17 +126,16 @@ else:
     for x, line in enumerate(pipe_map):
         belonging_line = ""
         for y, char in enumerate(line):
-            local_external_interlocked_tiles = external_interlocked_tiles.intersection([(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)])
+            local_external_interlocked_tiles = external_interlocked_tiles.intersection(
+                [(x, y), (x + 1, y), (x, y + 1), (x + 1, y + 1)])
             if len(local_external_interlocked_tiles) == 0:
                 belonging_line += "*"
-                
+
             elif len(local_external_interlocked_tiles) == 4:
                 belonging_line += "O"
             else:
                 belonging_line += char
-    
-        main_tiles_belonging.append(belonging_line)
-    
-    print("\n".join(main_tiles_belonging))
 
-  
+        main_tiles_belonging.append(belonging_line)
+
+    print("\n".join(main_tiles_belonging))

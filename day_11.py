@@ -6,7 +6,7 @@ part_1 = True
 
 galaxies_index = [(row_index, column_index) for row_index, line in enumerate(raw_galaxy_image) for column_index, char in enumerate(line) if char == "#"]
 if not galaxies_index:
-    raise ValueErrors('No galaxies in the image')
+    raise ValueError('No galaxies in the image')
 
 galaxy_image = np.full((len(raw_galaxy_image), len(raw_galaxy_image[0])), False, dtype=np.bool_)
 for x, y in galaxies_index:
@@ -26,8 +26,8 @@ for g_index_1, (x1, y1) in zip(range(len(galaxies_index) - 1), galaxies_index[:-
         galaxy_distances[g_index_1, g_index_2] = int(sum([
                 abs(x2 - x1),
                 abs(y2 - y1),
-                len(empty_rows.intersection(range(min(x1, x2), max(x1, x2)))),  # space distorsion in x
-                len(empty_cols.intersection(range(min(y1, y2), max(y1, y2)))),  # space distorsion in y
+                len(empty_rows.intersection(range(min(x1, x2), max(x1, x2)))),  # space distortion in x
+                len(empty_cols.intersection(range(min(y1, y2), max(y1, y2)))),  # space distortion in y
         ]))
 
-print(f"distance {int(np.nansum(galaxy_distances))})
+print(f"distance {int(np.nansum(galaxy_distances))}")

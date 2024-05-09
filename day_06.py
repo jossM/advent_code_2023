@@ -1,3 +1,5 @@
+import math
+
 raw_races = """"""  # fill this with input
 
 raw_times, raw_distances = raw_races.split("\n")
@@ -14,8 +16,6 @@ for race_index, (race_time, race_distance) in enumerate(zip(all_race_times, all_
 print(f"part1 solution : {solution_products}")
 
 # part 2
-  import math
-
 race_time = int("".join(raw_times.split(':')[1].split()))
 race_distance = int("".join(raw_distances.split(':')[1].split()))
 print(f"race time: {race_time}, distance {race_distance}")
